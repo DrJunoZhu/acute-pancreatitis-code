@@ -133,6 +133,7 @@ surv <- Survival(coxm) # 建立生存函数
 surv4 <- function(x)surv(1 * 30, lp = x)
 nomogramResult <- nomogram(coxm, fun = list(surv4), lp = F, funlabel = '30-Day survival probability', maxscale = 100, fun.at = c('0.9', '0.85', '0.80', '0.70', '0.6', '0.5', '0.4', '0.3', '0.2', '0.1'))
 
+png("nomo400.png", units = "in", width = 12, height = 8, res = 400)
 plot(nomogramResult, xfrac = .2,
      cex.axis = 1.05,
      force.label = TRUE,
@@ -140,6 +141,7 @@ plot(nomogramResult, xfrac = .2,
      lmgp = 0.1,
      vnames = "labels",
      col.grid = gray(c(0.85, 0.95)))
+dev.off()
 
 library(survival)
 library(ranger)
@@ -149,10 +151,10 @@ library(ggfortify)
 
 km_fit <- survfit(coxm)
 summary(km_fit, times = c(30))
-autoplot(km_fit)
+# autoplot(km_fit)
 
 aa_fit <- aareg(coxm, data = pancer)
-autoplot(aa_fit)
+# autoplot(aa_fit)
 
 r_fit <- ranger(coxm, data = pancer, importance = "permutation",
                 splitrule = "extratrees",
@@ -175,6 +177,7 @@ nom <- nomogram(lrm.final, fun = plogis,
                 funlabel = "30-Day Survival Probability"
 )
 
+png("survival.png", units = "in", width = 12, height = 8, res = 400)
 plot(nom, xfrac = .2,
      cex.axis = 1.05,
      force.label = TRUE,
@@ -183,9 +186,13 @@ plot(nom, xfrac = .2,
      vnames = "labels",
      col.grid = gray(c(0.85, 0.95)))
 
+dev.off()
+
 
 validate(lrm.final, method = "boot", B = 1000)
 cal1 <- calibrate(lrm.final, method = "boot", B = 1000)
+
+png("predict.png", units = "in", width = 12, height = 8, res = 400)
 plot(
   cal1,
   xlim = c(0.6, 1.0),
@@ -195,39 +202,45 @@ plot(
   legend = FALSE
 )
 
-abline(0, 1, col = "black", lty = 2, lwd = 2)
-lines(cal1[, c("predy", "calibrated.orig")], type = "l", lwd = 2, col = "red", pch = 16)
-lines(cal1[, c("predy", "calibrated.corrected")], type = "l", lwd = 2, col = "blue", pch = 16)
-legend(0.4, 0.3,
-       c("Apparent", "Ideal", "Bias-corrected"),
-       lty = c(2, 1, 1),
-       lwd = c(2, 1, 1),
-       col = c("black", "red", "blue"),
-       bty = "n")
+legend("bottomright", legend=c("ideal probability", "nomogram-predicted probability", "bootstrap-corrected probability"),
+       lty=c(2, 1, 3), bty="n")
 
+# abline(0, 1, col = "black", lty = 2, lwd = 2)
+# lines(cal1[, c("predy", "calibrated.orig")], type = "l", lwd = 2, col = "red", pch = 16)
+# lines(cal1[, c("predy", "calibrated.corrected")], type = "l", lwd = 2, col = "blue", pch = 16)
 
-roc_curve <- function(data) {
-  pre <- predict(model.final, newdata = data, type = 'response')
-  rocplot1 <- roc(data$non_surv, pre,  smoothed = TRUE,
-                  # arguments for ci
-                  ci=TRUE, ci.alpha=0.9, stratified=FALSE,
-                  # arguments for plot
-                  plot=TRUE, auc.polygon=TRUE, max.auc.polygon=TRUE, grid=TRUE,
-                  print.auc=TRUE, show.thres=TRUE)
-  ci.auc(rocplot1)
-  sens.ci <- ci.se(rocplot1)
-  plot(sens.ci, type="shape", col="lightblue")
-  plot(sens.ci, type="bars")
+# legend("bottomright",
+#        legend = c("Ideal", "nomogram-prediceted probablility", "bootstrap-corrected probability"),
+#        lty = c(2, 1, 1),
+#        lwd = c(2, 1, 1),
+#        col = c("black", "red", "blue"),
+#        bty = "n")
+dev.off()
 
+# roc_curve(completed_data)
+# roc_curve <- function(data) {
 
+pre <- predict(model.final, newdata = completed_data, type = 'response')
+png("roc.png", width = 12, height = 8, units = "in", res = 400)
+rocplot1 <- roc(completed_data$non_surv, pre, smoothed = TRUE,
+                # arguments for ci
+                ci = TRUE, ci.alpha = 0.9, stratified = FALSE,
+                # arguments for plot
+                plot = TRUE, auc.polygon = TRUE, max.auc.polygon = TRUE, grid = TRUE,
+                print.auc = TRUE, show.thres = TRUE)
+ci.auc(rocplot1)
+sens.ci <- ci.se(rocplot1)
+# tiff("Plot3.tiff",  res = 300)
+plot(sens.ci, type = "shape", col = "lightblue")
+plot(sens.ci, type = "bars")
+dev.off()
 # ,
-  # print.thres="best", print.thres.best.method="youden",
-  #          print.thres.best.weights=c(50, 0.2),
-  #          print.thres.adj = c(1.1, 1.25),
-  #          add = TRUE)
-}
+# print.thres="best", print.thres.best.method="youden",
+#          print.thres.best.weights=c(50, 0.2),
+#          print.thres.adj = c(1.1, 1.25),
+#          add = TRUE)
+# }
 
-roc_curve(completed_data)
 
 
 
